@@ -123,7 +123,8 @@ public:
             }
         }
         if (size > this->Capacity) {
-            this->Reserve(std::max(this->Capacity * 2, size));
+            size_t newCapacity = (this->Capacity == 0)? size : std::max(this->Capacity * 2, size);
+            this->Reserve(newCapacity);
         }
         if (size > this->Length) {
             for (size_t i = this->Length; i < size; ++i) {
@@ -135,8 +136,11 @@ public:
 
     template <typename U>
     void PushBack(U&& value) {
-        this->Resize(this->Length + 1);
-        new (&Data[this->Length - 1]) T(std::forward<U>(value));
+        if (this->Length == this->Capacity) {
+            this->Reserve(this->Capacity == 0 ? 1 : this->Capacity * 2);
+        }
+        new (&Data[this->Length]) T(std::forward<U>(value));
+        ++this->Length;
     }
 
     void PopBack() {
@@ -324,21 +328,22 @@ std::istream& operator>>(std::istream& is, TElement& element) {
 
 char pos(TVec<char>& x, size_t p) {
     if (p >= x.Size()) return 0;
-    return x[x.Size() - 1 - p];
+    return x[p];
 }
 
 template <typename iterator>
 void RadixSort(iterator begin, iterator end) {
     size_t vecSize = end - begin;
     TVec<TElement> res(vecSize);
-    for (size_t p = 0; p < KEY_LENGTH; ++p) {
+
+    for (int p = KEY_LENGTH - 1; p >= 0; --p) {
         char maxChar = 0;
         for (auto it = begin; it != end; ++it) {
             if (maxChar < pos(it->key, p)) {
                 maxChar = pos(it->key, p);
             }
         }
-        TVec<size_t> count(static_cast<size_t>(maxChar) + 1, 0);
+        TVec<size_t> count(maxChar + 1, 0);
         for (auto it = begin; it != end; ++it) {
             count[pos(it->key, p)]++;
         }
