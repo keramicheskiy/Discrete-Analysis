@@ -58,10 +58,12 @@ public:
     }
 
     T& operator[](size_t index) {
+        if (index >= this->Length) throw std::out_of_range("Out of range");
         return Data[index];
     }
     
     const T& operator[](size_t index) const {
+        if (index >= this->Length) throw std::out_of_range("Out of range");
         return Data[index];
     }
 
@@ -73,7 +75,7 @@ public:
         }
         if (this->Capacity < other.Length) {
             operator delete(this->Data);
-            this->Capacity = other.Length;
+            this->Capacity = other.Length; // Хмм
             this->Data = static_cast<T*>(operator new(this->Capacity * sizeof(T)));
         }
         for (size_t i = 0; i < other.Length; ++i) {
@@ -123,12 +125,12 @@ public:
             }
         }
         if (size > this->Capacity) {
-            size_t newCapacity = (this->Capacity == 0)? size : std::max(this->Capacity * 2, size);
-            this->Reserve(newCapacity);
+            size_t capacity = (this->Capacity == 0)? size : std::max(this->Capacity * 2, size);
+            this->Reserve(capacity);
         }
         if (size > this->Length) {
             for (size_t i = this->Length; i < size; ++i) {
-                new (&Data[i]) T();
+                new (&this->Data[i]) T();
             }
         }
         this->Length = size;
@@ -137,9 +139,9 @@ public:
     template <typename U>
     void PushBack(U&& value) {
         if (this->Length == this->Capacity) {
-            this->Reserve(this->Capacity == 0 ? 1 : this->Capacity * 2);
+            this->Reserve((this->Capacity == 0)? 1 : this->Capacity * 2);
         }
-        new (&Data[this->Length]) T(std::forward<U>(value));
+        new (&this->Data[this->Length]) T(std::forward<U>(value));
         ++this->Length;
     }
 
@@ -169,7 +171,7 @@ public:
         Data[index] = std::forward<U>(value);
     }
 
-    void Remove(size_t index) {
+    void Remove(size_t index) { // Хмм
         if (index >= this->Length) throw std::out_of_range("Out of range");
         for (size_t i = index; i < this->Length - 1; ++i) {
             Data[i] = std::move(Data[i + 1]);
@@ -208,12 +210,12 @@ public:
         iterator(pointer ptr = nullptr): ptr(ptr) {}
         reference operator*() { return *ptr; }
         pointer operator->() { return ptr; }
-        iterator operator++() { ++ptr; return *this; }
+        iterator& operator++() { ++ptr; return *this; }
         iterator operator++(int) { iterator temporary = *this; ++(*this); return temporary; }
-        iterator operator--() { --ptr; return *this; }
+        iterator& operator--() { --ptr; return *this; }
         iterator operator--(int) { iterator temporary = *this; --(*this); return temporary; }
-        iterator operator+=(difference_type diff) { ptr += diff; return *this; }
-        iterator operator-=(difference_type diff) { ptr -= diff; return *this; }
+        iterator& operator+=(difference_type diff) { ptr += diff; return *this; }
+        iterator& operator-=(difference_type diff) { ptr -= diff; return *this; }
         iterator operator+(difference_type diff) const { iterator temporary = *this; temporary += diff; return temporary; }
         iterator operator-(difference_type diff) const { iterator temporary = *this; temporary -= diff; return temporary; }
         difference_type operator-(const iterator& other) const { return ptr - other.ptr; }
@@ -221,8 +223,8 @@ public:
         bool operator<(const iterator& other) const { return this->ptr < other.ptr; }
         bool operator==(const iterator& other) const { return this->ptr == other.ptr; }
         bool operator!=(const iterator& other) const { return !(this->ptr == other.ptr); }
-        bool operator>=(const iterator& other) const { return *this > other || *this == other; }
-        bool operator<=(const iterator& other) const { return *this < other || *this == other; }
+        bool operator>=(const iterator& other) const { return this->ptr >= other.ptr; }
+        bool operator<=(const iterator& other) const { return this->ptr <= other.ptr; }
         reference operator[](difference_type diff) const { return *(ptr + diff); }
     };
 
@@ -240,12 +242,12 @@ public:
         const_iterator(const iterator& it): ptr(it.ptr) {}
         reference operator*() const { return *ptr; }
         pointer operator->() const { return ptr; }
-        const_iterator operator++() { ++ptr; return *this; }
+        const_iterator& operator++() { ++ptr; return *this; }
         const_iterator operator++(int) { const_iterator temporary = *this; ++(*this); return temporary; }
-        const_iterator operator--() { --ptr; return *this; }
+        const_iterator& operator--() { --ptr; return *this; }
         const_iterator operator--(int) { const_iterator temporary = *this; --(*this); return temporary; }
-        const_iterator operator+=(difference_type diff) { ptr += diff; return *this; }
-        const_iterator operator-=(difference_type diff) { ptr -= diff; return *this; }
+        const_iterator& operator+=(difference_type diff) { ptr += diff; return *this; }
+        const_iterator& operator-=(difference_type diff) { ptr -= diff; return *this; }
         const_iterator operator+(difference_type diff) const { const_iterator temporary = *this; temporary += diff; return temporary; }
         const_iterator operator-(difference_type diff) const { const_iterator temporary = *this; temporary -= diff; return temporary; }
         difference_type operator-(const iterator& other) const { return ptr - other.ptr; }
@@ -253,8 +255,8 @@ public:
         bool operator<(const const_iterator& other) const { return this->ptr < other.ptr; }
         bool operator==(const const_iterator& other) const { return this->ptr == other.ptr; }
         bool operator!=(const const_iterator& other) const { return !(this->ptr == other.ptr); }
-        bool operator>=(const const_iterator& other) const { return *this > other || *this == other; }
-        bool operator<=(const const_iterator& other) const { return *this < other || *this == other; }
+        bool operator>=(const const_iterator& other) const { return this->ptr >= other.ptr; }
+        bool operator<=(const const_iterator& other) const { return this->ptr <= other.ptr; }
         reference operator[](difference_type diff) const { return *(ptr + diff); }
     };
 
@@ -278,23 +280,13 @@ public:
 
 struct TElement {
     TVec<char> key = TVec<char>();
-    unsigned long long value = 0;
-
-    TElement(TVec<char> key, uint64_t value): key(key), value(value) {}
+    uint64_t value = 0;
 
     TElement() = default;
 
+    TElement(TVec<char> key, uint64_t value): key(key), value(value) {}
+
 };
-
-std::istream& operator>>(std::istream& is, TVec<char>& vec) {
-    char c;
-    vec.Clear();
-
-    while(is.get(c) && c != '\n') {
-        vec.PushBack(c);
-    }
-    return is;
-}
 
 std::ostream& operator<<(std::ostream& os, const TVec<char>& vec) {
     for (size_t i = 0; i < vec.Size(); ++i) {
@@ -314,21 +306,42 @@ std::ostream& operator<<(std::ostream& os, const TVec<TElement>& vec) {
     }
     return os;
 }
-
-std::istream& operator>>(std::istream& is, TElement& element) {
+// ----------------------------------------------------------------------------
+std::istream& operator>>(std::istream& is, TVec<char>& vec) {
+    vec.Clear();
+    
     char c;
-    element.key.Clear();
-    while (is.get(c) && c != '\t') {
-        element.key.PushBack(c);
+    while(is.get(c) && c != EOF && c != '\n') {
+        vec.PushBack(c);
     }
-    is >> element.value;
     return is;
 }
 
+std::istream& operator>>(std::istream& is, TElement& element) {
+    element.key.Clear();
 
-char pos(TVec<char>& x, size_t p) {
+    char c;
+    while (is.get(c) && c != '\t') {
+        element.key.PushBack(c);
+    }
+
+    if (!is)
+        return is;
+
+    is >> element.value;
+    is.get();
+
+    return is;
+}
+
+// char pos(TVec<char>& x, size_t p) {
+//     if (p >= x.Size()) return 0;
+//     return x[p];
+// }
+
+unsigned char pos(const TVec<char>& x, size_t p) {
     if (p >= x.Size()) return 0;
-    return x[p];
+    return static_cast<unsigned char>(x[p]);
 }
 
 template <typename iterator>
@@ -337,17 +350,19 @@ void RadixSort(iterator begin, iterator end) {
     TVec<TElement> res(vecSize);
 
     for (int p = KEY_LENGTH - 1; p >= 0; --p) {
-        char maxChar = 0;
-        for (auto it = begin; it != end; ++it) {
-            if (maxChar < pos(it->key, p)) {
-                maxChar = pos(it->key, p);
-            }
-        }
-        TVec<size_t> count(maxChar + 1, 0);
+        if (p == 5 || p == 1) continue;
+        unsigned char maxChar = 0;
+        // for (auto it = begin; it != end; ++it) {
+        //     unsigned char c = pos(it->key, p);
+        //     if (c > maxChar) {
+        //         maxChar = c;
+        //     }
+        // }
+        TVec<size_t> count(91, 0);
         for (auto it = begin; it != end; ++it) {
             count[pos(it->key, p)]++;
         }
-        for (size_t i = 1; i <= maxChar; ++i) {
+        for (size_t i = 1; i <= 90; ++i) {
             count[i] += count[i - 1];
         }
         for (size_t i = vecSize; i > 0; i--) {
@@ -374,20 +389,15 @@ int main() {
     TVec<TElement> toBeSorted;
 
     TElement element;
-    while (true) {
-        int next = std::cin.peek();
-        if (next == '\n' || next == EOF) {
-            std::cin.get();
-            break;
-        }
-        std::cin >> element;
+
+    while (std::cin >> element) {
         toBeSorted.PushBack(element);
-        std::cin.get();
     }
+
 
     RadixSort(toBeSorted.begin(), toBeSorted.end());
 
-    std::cout << toBeSorted << std::endl;
+    std::cout << toBeSorted;
 
     return 0;
 }
