@@ -75,7 +75,7 @@ public:
         }
         if (this->Capacity < other.Length) {
             operator delete(this->Data);
-            this->Capacity = other.Length; // Хмм
+            this->Capacity = other.Length;
             this->Data = static_cast<T*>(operator new(this->Capacity * sizeof(T)));
         }
         for (size_t i = 0; i < other.Length; ++i) {
@@ -171,7 +171,7 @@ public:
         Data[index] = std::forward<U>(value);
     }
 
-    void Remove(size_t index) { // Хмм
+    void Remove(size_t index) {
         if (index >= this->Length) throw std::out_of_range("Out of range");
         for (size_t i = index; i < this->Length - 1; ++i) {
             Data[i] = std::move(Data[i + 1]);
@@ -306,7 +306,7 @@ std::ostream& operator<<(std::ostream& os, const TVec<TElement>& vec) {
     }
     return os;
 }
-// ----------------------------------------------------------------------------
+
 std::istream& operator>>(std::istream& is, TVec<char>& vec) {
     vec.Clear();
     
@@ -319,25 +319,62 @@ std::istream& operator>>(std::istream& is, TVec<char>& vec) {
 
 std::istream& operator>>(std::istream& is, TElement& element) {
     element.key.Clear();
+    element.value = 0;
 
     char c;
-    while (is.get(c) && c != '\t') {
+    while (is.get(c) && c != '\t' && c != '\n') {
         element.key.PushBack(c);
     }
 
-    if (!is)
+    if (!is || c != '\t') {
+        while (c != '\n' && is.get(c));
+        element.key.Clear();
         return is;
+    }
 
-    is >> element.value;
-    is.get();
+    if (element.key.Size() != KEY_LENGTH) {
+        while (c != '\n' && is.get(c));
+        element.key.Clear();
+        return is;
+    }
+
+    bool hasDigit = false;
+    while (is.get(c) && c != '\n') {
+        if (c < '0' || c > '9') {
+            hasDigit = false;
+            while (c != '\n' && is.get(c));
+            element.key.Clear();
+            return is;
+        }
+        hasDigit = true;
+        element.value = element.value * 10 + (c - '0');
+    }
+
+    if (!hasDigit) {
+        element.key.Clear();
+    }
 
     return is;
 }
 
-// char pos(TVec<char>& x, size_t p) {
-//     if (p >= x.Size()) return 0;
-//     return x[p];
-// }
+
+bool IsValidKey(const TVec<char>& key) {
+    if (key.Size() != KEY_LENGTH)
+        return false;
+
+    if (key[1] != ' ' || key[5] != ' ')
+        return false;
+
+    if (key[2] < '0' || key[2] > '9') return false;
+    if (key[3] < '0' || key[3] > '9') return false;
+    if (key[4] < '0' || key[4] > '9') return false;
+
+    if (key[0] < 'A' || key[0] > 'Z') return false;
+    if (key[6] < 'A' || key[6] > 'Z') return false;
+    if (key[7] < 'A' || key[7] > 'Z') return false;
+
+    return true;
+}
 
 unsigned char pos(const TVec<char>& x, size_t p) {
     if (p >= x.Size()) return 0;
@@ -351,18 +388,18 @@ void RadixSort(iterator begin, iterator end) {
 
     for (int p = KEY_LENGTH - 1; p >= 0; --p) {
         if (p == 5 || p == 1) continue;
-        unsigned char maxChar = 0;
+        unsigned char maxChar = 255;
         // for (auto it = begin; it != end; ++it) {
         //     unsigned char c = pos(it->key, p);
         //     if (c > maxChar) {
         //         maxChar = c;
         //     }
         // }
-        TVec<size_t> count(91, 0);
+        TVec<size_t> count(maxChar + 1, 0);
         for (auto it = begin; it != end; ++it) {
             count[pos(it->key, p)]++;
         }
-        for (size_t i = 1; i <= 90; ++i) {
+        for (size_t i = 1; i < maxChar + 1; ++i) {
             count[i] += count[i - 1];
         }
         for (size_t i = vecSize; i > 0; i--) {
@@ -391,7 +428,8 @@ int main() {
     TElement element;
 
     while (std::cin >> element) {
-        toBeSorted.PushBack(element);
+        if (IsValidKey(element.key))
+            toBeSorted.PushBack(element);
     }
 
 
