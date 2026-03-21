@@ -279,24 +279,13 @@ public:
 };
 
 struct TElement {
-    TVec<char> key = TVec<char>();
+    char key[KEY_LENGTH];
     uint64_t value = 0;
-
-    TElement() = default;
-
-    TElement(TVec<char> key, uint64_t value): key(key), value(value) {}
-
 };
 
-std::ostream& operator<<(std::ostream& os, const TVec<char>& vec) {
-    for (size_t i = 0; i < vec.Size(); ++i) {
-        os << vec[i];
-    }
-    return os;
-}
-
 std::ostream& operator<<(std::ostream& os, const TElement& element) {
-    os << element.key << '\t' << element.value;
+    os.write(element.key, KEY_LENGTH);
+    os << '\t' << element.value;
     return os;
 }
 
@@ -307,78 +296,24 @@ std::ostream& operator<<(std::ostream& os, const TVec<TElement>& vec) {
     return os;
 }
 
-std::istream& operator>>(std::istream& is, TVec<char>& vec) {
-    vec.Clear();
-    
-    char c;
-    while(is.get(c) && c != EOF && c != '\n') {
-        vec.PushBack(c);
-    }
-    return is;
-}
 
-std::istream& operator>>(std::istream& is, TElement& element) {
-    element.key.Clear();
-    element.value = 0;
+bool IsValidKey(const char key[KEY_LENGTH]) {
+    if (key[1] != ' ' || key[5] != ' ') return false;
 
-    char c;
-    while (is.get(c) && c != '\t' && c != '\n') {
-        element.key.PushBack(c);
-    }
-
-    if (!is || c != '\t') {
-        while (c != '\n' && is.get(c));
-        element.key.Clear();
-        return is;
-    }
-
-    if (element.key.Size() != KEY_LENGTH) {
-        while (c != '\n' && is.get(c));
-        element.key.Clear();
-        return is;
-    }
-
-    bool hasDigit = false;
-    while (is.get(c) && c != '\n') {
-        if (c < '0' || c > '9') {
-            hasDigit = false;
-            while (c != '\n' && is.get(c));
-            element.key.Clear();
-            return is;
-        }
-        hasDigit = true;
-        element.value = element.value * 10 + (c - '0');
-    }
-
-    if (!hasDigit) {
-        element.key.Clear();
-    }
-
-    return is;
-}
-
-
-bool IsValidKey(const TVec<char>& key) {
-    if (key.Size() != KEY_LENGTH)
-        return false;
-
-    if (key[1] != ' ' || key[5] != ' ')
-        return false;
+    if (key[0] < 'A' || key[0] > 'Z') return false;
 
     if (key[2] < '0' || key[2] > '9') return false;
     if (key[3] < '0' || key[3] > '9') return false;
     if (key[4] < '0' || key[4] > '9') return false;
 
-    if (key[0] < 'A' || key[0] > 'Z') return false;
     if (key[6] < 'A' || key[6] > 'Z') return false;
     if (key[7] < 'A' || key[7] > 'Z') return false;
 
     return true;
 }
 
-unsigned char pos(const TVec<char>& x, size_t p) {
-    if (p >= x.Size()) return 0;
-    return static_cast<unsigned char>(x[p]);
+unsigned char pos(const TElement& element, size_t p) {
+    return static_cast<unsigned char>(element.key[p]);
 }
 
 template <typename iterator>
@@ -397,15 +332,14 @@ void RadixSort(iterator begin, iterator end) {
         // }
         TVec<size_t> count(maxChar + 1, 0);
         for (auto it = begin; it != end; ++it) {
-            count[pos(it->key, p)]++;
+            count[pos(*it, p)]++;
         }
         for (size_t i = 1; i < maxChar + 1; ++i) {
             count[i] += count[i - 1];
         }
         for (size_t i = vecSize; i > 0; i--) {
-            iterator x = begin + i - 1;
-            res[count[pos(x->key, p)] - 1] = *x;
-            count[pos(x->key, p)]--;
+            iterator x = (begin + i - 1);
+            res[--count[pos(*x, p)]] = *x;
         }
         for (size_t i = 0; i < vecSize; ++i) {
             *(begin + i) = res[i];
@@ -413,6 +347,7 @@ void RadixSort(iterator begin, iterator end) {
 
     }
 }
+
 
 /*
 A 000 AA	13207862122685464576
@@ -422,19 +357,69 @@ Z 999 ZZ	12992997081104908288
 
 */
 
+/*
+A 9999 A	31247869
+Z 999 ZZ	12992997081104908288
+A 999 AA	4716328
+A 000 AA	13207862122685464576
+B 888 BA	
+C 777 CC
+D 666 DD	3782149
+sadjfla
+
+Z 999 ZZ	7670388314707853312
+A 000 AA	4588010303972900864
+F 555 FF 	wagjhfkls
+
+*/
+
 int main() {
     TVec<TElement> toBeSorted;
+    const size_t MAX_LINE = 256;
+    char line[MAX_LINE];
 
-    TElement element;
+    while (true) {
+        size_t i = 0;
+        char c;
+        while (std::cin.get(c) && c != '\n') {
+            if (i < MAX_LINE - 1)
+                line[i++] = c;
+        }
+        line[i] = '\0';
 
-    while (std::cin >> element) {
-        if (IsValidKey(element.key))
-            toBeSorted.PushBack(element);
+        if (i == 0 && !std::cin) break;
+
+        if (i < 9) continue;
+        if (line[8] != '\t') continue;
+
+        char key[KEY_LENGTH];
+        for (size_t i = 0; i < KEY_LENGTH; ++i)
+            key[i] = line[i];
+        if (!IsValidKey(key)) continue;
+
+        uint64_t value = 0;
+        size_t p = 9;
+        bool hasDigit = false;
+        while (p < i && line[p] != '\n') {
+            char c = line[p];
+            if (c < '0' || c > '9') {
+                hasDigit = false;
+                break;
+            }
+            hasDigit = true;
+            value = value * 10 + (c - '0');
+            ++p;
+        }
+        if (!hasDigit) continue;
+
+        TElement el;
+        for (size_t j = 0; j < KEY_LENGTH; ++j)
+            el.key[j] = key[j];
+        el.value = value;
+        toBeSorted.PushBack(el);
     }
 
-
     RadixSort(toBeSorted.begin(), toBeSorted.end());
-
     std::cout << toBeSorted;
 
     return 0;
