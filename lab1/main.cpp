@@ -2,6 +2,7 @@
 #include <cstdint>
 
 const size_t KEY_LENGTH = 8;
+const size_t MAX_LINE = 256;
 
 
 template <typename T>
@@ -291,7 +292,7 @@ std::ostream& operator<<(std::ostream& os, const TElement& element) {
 
 std::ostream& operator<<(std::ostream& os, const TVec<TElement>& vec) {
     for (size_t i = 0; i < vec.Size(); ++i) {
-        os << vec[i] << std::endl;
+        os << vec[i] << '\n';
     }
     return os;
 }
@@ -324,12 +325,6 @@ void RadixSort(iterator begin, iterator end) {
     for (int p = KEY_LENGTH - 1; p >= 0; --p) {
         if (p == 5 || p == 1) continue;
         unsigned char maxChar = 255;
-        // for (auto it = begin; it != end; ++it) {
-        //     unsigned char c = pos(it->key, p);
-        //     if (c > maxChar) {
-        //         maxChar = c;
-        //     }
-        // }
         TVec<size_t> count(maxChar + 1, 0);
         for (auto it = begin; it != end; ++it) {
             count[pos(*it, p)]++;
@@ -347,15 +342,6 @@ void RadixSort(iterator begin, iterator end) {
 
     }
 }
-
-
-/*
-A 000 AA	13207862122685464576
-Z 999 ZZ	7670388314707853312
-A 000 AA	4588010303972900864
-Z 999 ZZ	12992997081104908288
-
-*/
 
 /*
 A 9999 A	31247869
@@ -375,7 +361,6 @@ F 555 FF 	wagjhfkls
 
 int main() {
     TVec<TElement> toBeSorted;
-    const size_t MAX_LINE = 256;
     char line[MAX_LINE];
 
     while (true) {
